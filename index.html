@@ -10,6 +10,8 @@
   <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
   <!-- Include A-Frame Extras for VR movement controls (thumbstick locomotion) -->
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+  <!-- Include Super Hands for VR dragging and grabbing -->
+  <script src="https://unpkg.com/super-hands@^3.0.4/dist/super-hands.min.js"></script>
 </head>
 
 <body>
@@ -26,7 +28,7 @@
     <!-- Display the 3D House Model -->
     <!-- We add a 'shadow' component to cast shadows. The scale/position might need tweaking based on the model's native size. -->
     <a-entity gltf-model="#houseModel" position="0 0 -10" scale="1 1 1" shadow="cast: true; receive: true"
-      class="clickable"></a-entity>
+      class="clickable" hoverable grabbable stretchable draggable></a-entity>
 
     <!-- Optional additional lighting -->
     <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
@@ -41,9 +43,13 @@
 
       <!-- Hand Controllers for Meta Quest / VR headsets -->
       <!-- Left Hand -->
-      <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 50"></a-entity>
+      <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 50"
+        super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent:raycaster-intersection-cleared; colliderEndEventProperty: clearedEls;">
+      </a-entity>
       <!-- Right Hand -->
-      <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 50"></a-entity>
+      <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 50"
+        super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent:raycaster-intersection-cleared; colliderEndEventProperty: clearedEls;">
+      </a-entity>
 
     </a-entity>
   </a-scene>
