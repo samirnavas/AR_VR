@@ -50,53 +50,96 @@
       }
     });
 
-    // Custom Component: Spawn and Handle VR Color Menu on walls/floors
+    // ── Shared helpers for the color picker system ──
+    function createCheckerCanvas(size) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      const s = size / 8;
+      for (let r = 0; r < 8; r++) {
+        for (let col = 0; col < 8; col++) {
+          ctx.fillStyle = (r + col) % 2 === 0 ? 'rgba(212,175,55,0.45)' : 'rgba(255,255,255,0.08)';
+          ctx.fillRect(col * s, r * s, s, s);
+        }
+      }
+      return c;
+    }
+    const checkerTex = new THREE.CanvasTexture(createCheckerCanvas(256));
+    checkerTex.wrapS = checkerTex.wrapT = THREE.RepeatWrapping;
+    checkerTex.repeat.set(4, 4);
+
+    let highlightOverlay = null; // Single reusable overlay mesh
+
+    function removeHighlight() {
+      if (highlightOverlay && highlightOverlay.parent) {
+        highlightOverlay.parent.remove(highlightOverlay);
+      }
+    }
+
+    function addHighlightTo(planeEl) {
+      removeHighlight();
+      // Create overlay if first time
+      if (!highlightOverlay) {
+        const geo = new THREE.PlaneGeometry(1, 1);
+        const mat = new THREE.MeshBasicMaterial({
+          map: checkerTex, transparent: true, opacity: 0.6,
+          depthTest: true, side: THREE.DoubleSide
+        });
+        highlightOverlay = new THREE.Mesh(geo, mat);
+      }
+      // Match the size of the target plane
+      const w = parseFloat(planeEl.getAttribute('width')) || 1;
+      const h = parseFloat(planeEl.getAttribute('height')) || 1;
+      highlightOverlay.scale.set(w, h, 1);
+      // Position slightly above the surface so it doesn't z-fight
+      highlightOverlay.position.set(0, 0, 0.005);
+      planeEl.object3D.add(highlightOverlay);
+    }
+
+    function closeMenu() {
+      const menu = document.querySelector('#vr-color-menu');
+      if (menu) menu.setAttribute('visible', 'false');
+      removeHighlight();
+      window.activePlane = null;
+    }
+    window.closeColorMenu = closeMenu;
+
+    // ── Component: makes a plane clickable for color picking ──
     AFRAME.registerComponent('color-picker-target', {
       init: function () {
         this.menu = document.querySelector('#vr-color-menu');
         this.camera = document.querySelector('[camera]');
-
         this.el.addEventListener('click', (evt) => {
-          // Identify where the raycaster hit the plane
-          const intersection = evt.detail.intersection;
-          if (!intersection || !this.menu || !this.camera) return;
-
-          // Make the menu visible
-          this.menu.setAttribute('visible', 'true');
-
-          // Position the menu slightly in front of the hit point
-          const hitPoint = intersection.point;
-
-          // Get the direction from the hit point to the camera to offset the menu so it doesn't clip into the wall
-          const dirFromCameraXYZ = new THREE.Vector3().subVectors(this.camera.object3D.position, hitPoint).normalize();
-
-          // Also set the global 'activePlane' reference to this specific wall/floor so menu buttons know what to target
+          if (!this.menu || !this.camera) return;
+          // If clicking the same plane, toggle menu off
+          if (window.activePlane === this.el && this.menu.getAttribute('visible')) {
+            closeMenu();
+            return;
+          }
           window.activePlane = this.el;
+          addHighlightTo(this.el);
 
-          // Place menu slightly off the surface towards the user
-          this.menu.object3D.position.copy(hitPoint).add(dirFromCameraXYZ.multiplyScalar(0.4));
-
-          // Make the menu rotate to explicitly look at the camera
-          this.menu.object3D.lookAt(this.camera.object3D.position);
+          // Position menu 1.5 m in front of the camera
+          const cam = this.camera.object3D;
+          const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+          const pos = cam.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(1.5));
+          this.menu.object3D.position.copy(pos);
+          this.menu.object3D.lookAt(cam.getWorldPosition(new THREE.Vector3()));
+          this.menu.setAttribute('visible', 'true');
         });
       }
     });
 
-    // Custom Component for the actual color swatch buttons
+    // ── Component: individual swatch button ──
     AFRAME.registerComponent('color-swatch', {
       schema: { color: { type: 'string' } },
       init: function () {
         this.el.addEventListener('click', (evt) => {
-          // Stop the click from propagating through the menu to the wall behind it
           evt.stopPropagation();
-
-          // If a plane was selected previously, update its color
           if (window.activePlane) {
             window.activePlane.setAttribute('material', 'color', this.data.color);
           }
-
-          // Hide menu after selection
-          this.el.parentNode.setAttribute('visible', 'false');
+          closeMenu();
         });
       }
     });
@@ -262,9 +305,9 @@
 
       <!-- Close Button -->
       <a-box class="clickable" position="0.75 0.3 0.02" width="0.15" height="0.15" depth="0.01" color="#FF4D4D"
-        onclick="document.getElementById('vr-color-menu').setAttribute('visible', 'false'); event.stopPropagation();"></a-box>
+        onclick="window.closeColorMenu(); event.stopPropagation();"></a-box>
       <a-text value="X" color="#FFF" align="center" position="0.75 0.3 0.03" width="3" font="mozillavr"
-        onclick="document.getElementById('vr-color-menu').setAttribute('visible', 'false'); event.stopPropagation();"></a-text>
+        onclick="window.closeColorMenu(); event.stopPropagation();"></a-text>
 
       <!-- Swatches Grid (Premium Palette) -->
       <!-- Pristine White -->
