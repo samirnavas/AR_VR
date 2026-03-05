@@ -49,6 +49,57 @@
         this.rig.object3D.position.add(this.direction);
       }
     });
+
+    // Custom Component: Spawn and Handle VR Color Menu on walls/floors
+    AFRAME.registerComponent('color-picker-target', {
+      init: function () {
+        this.menu = document.querySelector('#vr-color-menu');
+        this.camera = document.querySelector('[camera]');
+
+        this.el.addEventListener('click', (evt) => {
+          // Identify where the raycaster hit the plane
+          const intersection = evt.detail.intersection;
+          if (!intersection || !this.menu || !this.camera) return;
+
+          // Make the menu visible
+          this.menu.setAttribute('visible', 'true');
+
+          // Position the menu slightly in front of the hit point
+          const hitPoint = intersection.point;
+
+          // Get the direction from the hit point to the camera to offset the menu so it doesn't clip into the wall
+          const dirFromCameraXYZ = new THREE.Vector3().subVectors(this.camera.object3D.position, hitPoint).normalize();
+
+          // Also set the global 'activePlane' reference to this specific wall/floor so menu buttons know what to target
+          window.activePlane = this.el;
+
+          // Place menu slightly off the surface towards the user
+          this.menu.object3D.position.copy(hitPoint).add(dirFromCameraXYZ.multiplyScalar(0.4));
+
+          // Make the menu rotate to explicitly look at the camera
+          this.menu.object3D.lookAt(this.camera.object3D.position);
+        });
+      }
+    });
+
+    // Custom Component for the actual color swatch buttons
+    AFRAME.registerComponent('color-swatch', {
+      schema: { color: { type: 'string' } },
+      init: function () {
+        this.el.addEventListener('click', (evt) => {
+          // Stop the click from propagating through the menu to the wall behind it
+          evt.stopPropagation();
+
+          // If a plane was selected previously, update its color
+          if (window.activePlane) {
+            window.activePlane.setAttribute('material', 'color', this.data.color);
+          }
+
+          // Hide menu after selection
+          this.el.parentNode.setAttribute('visible', 'false');
+        });
+      }
+    });
   </script>
   <style>
     body {
@@ -201,6 +252,48 @@
       <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 10"></a-entity>
     </a-entity>
 
+    <!-- Global Floating Color Menu (Hidden by default, spawned on click) -->
+    <a-entity id="vr-color-menu" visible="false" position="0 -10 0">
+      <!-- Menu Background Panel -->
+      <a-plane width="1.8" height="0.8" color="#1A1A1A" opacity="0.9" material="shader: flat"
+        position="0 0 0"></a-plane>
+      <a-text value="Select Surface Color" color="#D4AF37" align="center" position="0 0.3 0.01" width="3.5"
+        font="mozillavr"></a-text>
+
+      <!-- Close Button -->
+      <a-box class="clickable" position="0.75 0.3 0.02" width="0.15" height="0.15" depth="0.01" color="#FF4D4D"
+        onclick="document.getElementById('vr-color-menu').setAttribute('visible', 'false'); event.stopPropagation();"></a-box>
+      <a-text value="X" color="#FFF" align="center" position="0.75 0.3 0.03" width="3" font="mozillavr"
+        onclick="document.getElementById('vr-color-menu').setAttribute('visible', 'false'); event.stopPropagation();"></a-text>
+
+      <!-- Swatches Grid (Premium Palette) -->
+      <!-- Pristine White -->
+      <a-box class="clickable" color-swatch="color: #FFFFFF" color="#FFFFFF" position="-0.6 0 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+      <!-- Alabaster / Luxury White -->
+      <a-box class="clickable" color-swatch="color: #FDFBF7" color="#FDFBF7" position="-0.2 0 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+      <!-- Warm Light Cream -->
+      <a-box class="clickable" color-swatch="color: #FAF6F0" color="#FAF6F0" position="0.2 0 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+      <!-- Pearl Grey -->
+      <a-box class="clickable" color-swatch="color: #E2E2E2" color="#E2E2E2" position="0.6 0 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+
+      <!-- Charcoal Navy Accent -->
+      <a-box class="clickable" color-swatch="color: #1a2a3a" color="#1a2a3a" position="-0.6 -0.4 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+      <!-- Deep Burgundy Accent -->
+      <a-box class="clickable" color-swatch="color: #4a1c1c" color="#4a1c1c" position="-0.2 -0.4 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+      <!-- Rich Gold Accent -->
+      <a-box class="clickable" color-swatch="color: #D4AF37" color="#D4AF37" position="0.2 -0.4 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+      <!-- Forest Green Accent -->
+      <a-box class="clickable" color-swatch="color: #2b3d2b" color="#2b3d2b" position="0.6 -0.4 0.02" width="0.3"
+        height="0.3" depth="0.05"></a-box>
+    </a-entity>
+
     <!-- Ambient & Directional Lighting (Luxurious Warm) -->
     <a-entity light="type: ambient; color: #FFECD2; intensity: 0.45"></a-entity>
     <a-entity light="type: directional; color: #FFC88A; intensity: 0.75" position="2 5 -2"></a-entity>
@@ -209,19 +302,20 @@
     <a-entity id="living-room" position="0 0 0">
       <!-- Floor -->
       <!-- Floor (Premium Light Tiling) -->
-      <a-plane position="0 0.01 0" rotation="-90 0 0" width="12" height="12"
+      <a-plane class="clickable" color-picker-target position="0 0.01 0" rotation="-90 0 0" width="12" height="12"
         material="color: #FAF6F0; metalness: 0.2; roughness: 0.1"></a-plane>
       <!-- Ceiling (Pristine White) -->
-      <a-plane position="0 4 0" rotation="90 0 0" width="12" height="12"
+      <a-plane class="clickable" color-picker-target position="0 4 0" rotation="90 0 0" width="12" height="12"
         material="color: #FFFFFF; roughness: 0.9"></a-plane>
 
       <!-- Walls -->
-      <a-plane position="0 2 -6" width="12" height="4" material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="0 2 6" rotation="0 180 0" width="12" height="4"
+      <a-plane class="clickable" color-picker-target position="0 2 -6" width="12" height="4"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="-6 2 0" rotation="0 90 0" width="12" height="4"
+      <a-plane class="clickable" color-picker-target position="0 2 6" rotation="0 180 0" width="12" height="4"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="6 2 0" rotation="0 -90 0" width="12" height="4"
+      <a-plane class="clickable" color-picker-target position="-6 2 0" rotation="0 90 0" width="12" height="4"
+        material="color: #FDFBF7; roughness: 0.8"></a-plane>
+      <a-plane class="clickable" color-picker-target position="6 2 0" rotation="0 -90 0" width="12" height="4"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
 
       <!-- Crown Molding (top of walls) -->
@@ -394,17 +488,18 @@
     <!-- ==================== DINING ROOM ==================== -->
     <a-entity id="dining-room" position="20 0 0" visible="false">
       <!-- Dining Room Floor (Premium Light Tiling) -->
-      <a-plane position="0 0.01 0" rotation="-90 0 0" width="10" height="10"
+      <a-plane class="clickable" color-picker-target position="0 0.01 0" rotation="-90 0 0" width="10" height="10"
         material="color: #FAF6F0; metalness: 0.2; roughness: 0.1"></a-plane>
       <!-- Dining Room Ceiling (Pristine White) -->
-      <a-plane position="0 4 0" rotation="90 0 0" width="10" height="10"
+      <a-plane class="clickable" color-picker-target position="0 4 0" rotation="90 0 0" width="10" height="10"
         material="color: #FFFFFF; roughness: 0.9"></a-plane>
-      <a-plane position="0 2 -5" width="10" height="4" material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="0 2 5" rotation="0 180 0" width="10" height="4"
+      <a-plane class="clickable" color-picker-target position="0 2 -5" width="10" height="4"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="-5 2 0" rotation="0 90 0" width="10" height="4"
+      <a-plane class="clickable" color-picker-target position="0 2 5" rotation="0 180 0" width="10" height="4"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="5 2 0" rotation="0 -90 0" width="10" height="4"
+      <a-plane class="clickable" color-picker-target position="-5 2 0" rotation="0 90 0" width="10" height="4"
+        material="color: #FDFBF7; roughness: 0.8"></a-plane>
+      <a-plane class="clickable" color-picker-target position="5 2 0" rotation="0 -90 0" width="10" height="4"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
 
       <!-- Dining Table -->
@@ -479,15 +574,19 @@
     <!-- ==================== BEDROOM ==================== -->
     <a-entity id="bedroom" position="40 0 0" visible="false">
       <!-- Bedroom Floor (Premium Light Tiling) -->
-      <a-plane position="0 0.01 0" rotation="-90 0 0" width="10" height="10"
+      <a-plane class="clickable" color-picker-target position="0 0.01 0" rotation="-90 0 0" width="10" height="10"
         material="color: #FAF6F0; metalness: 0.15; roughness: 0.15"></a-plane>
       <!-- Bedroom Ceiling (Pristine White) -->
-      <a-plane position="0 3.5 0" rotation="90 0 0" width="10" height="10"
+      <a-plane class="clickable" color-picker-target position="0 3.5 0" rotation="90 0 0" width="10" height="10"
         material="color: #FFFFFF; roughness: 0.9"></a-plane>
-      <a-plane position="0 1.75 -5" width="10" height="3.5" material="color: #FDFBF7"></a-plane>
-      <a-plane position="0 1.75 5" rotation="0 180 0" width="10" height="3.5" material="color: #FDFBF7"></a-plane>
-      <a-plane position="-5 1.75 0" rotation="0 90 0" width="10" height="3.5" material="color: #FDFBF7"></a-plane>
-      <a-plane position="5 1.75 0" rotation="0 -90 0" width="10" height="3.5" material="color: #FDFBF7"></a-plane>
+      <a-plane class="clickable" color-picker-target position="0 1.75 -5" width="10" height="3.5"
+        material="color: #FDFBF7"></a-plane>
+      <a-plane class="clickable" color-picker-target position="0 1.75 5" rotation="0 180 0" width="10" height="3.5"
+        material="color: #FDFBF7"></a-plane>
+      <a-plane class="clickable" color-picker-target position="-5 1.75 0" rotation="0 90 0" width="10" height="3.5"
+        material="color: #FDFBF7"></a-plane>
+      <a-plane class="clickable" color-picker-target position="5 1.75 0" rotation="0 -90 0" width="10" height="3.5"
+        material="color: #FDFBF7"></a-plane>
 
       <!-- King Size Bed -->
       <a-entity position="0 0 -2.5">
@@ -541,17 +640,18 @@
     <!-- ==================== KITCHEN ==================== -->
     <a-entity id="kitchen" position="60 0 0" visible="false">
       <!-- Kitchen Floor (Premium Light Tiling) -->
-      <a-plane position="0 0.01 0" rotation="-90 0 0" width="10" height="10"
+      <a-plane class="clickable" color-picker-target position="0 0.01 0" rotation="-90 0 0" width="10" height="10"
         material="color: #FAF6F0; metalness: 0.25; roughness: 0.05"></a-plane>
       <!-- Kitchen Ceiling (Pristine White) -->
-      <a-plane position="0 3.5 0" rotation="90 0 0" width="10" height="10"
+      <a-plane class="clickable" color-picker-target position="0 3.5 0" rotation="90 0 0" width="10" height="10"
         material="color: #FFFFFF; roughness: 0.9"></a-plane>
-      <a-plane position="0 1.75 -5" width="10" height="3.5" material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="0 1.75 5" rotation="0 180 0" width="10" height="3.5"
+      <a-plane class="clickable" color-picker-target position="0 1.75 -5" width="10" height="3.5"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="-5 1.75 0" rotation="0 90 0" width="10" height="3.5"
+      <a-plane class="clickable" color-picker-target position="0 1.75 5" rotation="0 180 0" width="10" height="3.5"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
-      <a-plane position="5 1.75 0" rotation="0 -90 0" width="10" height="3.5"
+      <a-plane class="clickable" color-picker-target position="-5 1.75 0" rotation="0 90 0" width="10" height="3.5"
+        material="color: #FDFBF7; roughness: 0.8"></a-plane>
+      <a-plane class="clickable" color-picker-target position="5 1.75 0" rotation="0 -90 0" width="10" height="3.5"
         material="color: #FDFBF7; roughness: 0.8"></a-plane>
 
       <!-- Kitchen Island -->
