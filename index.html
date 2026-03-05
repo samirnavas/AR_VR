@@ -7,6 +7,42 @@
   <meta name="description" content="Immersive VR tour of a luxurious house interior built with A-Frame">
   <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.5.0/dist/aframe-extras.min.js"></script>
+
+  <script>
+    // Custom component to move forward when pressing screen/trigger
+    AFRAME.registerComponent('press-to-move', {
+      schema: { speed: { default: 0.05 } },
+      init: function () {
+        this.isPressing = false;
+        this.direction = new THREE.Vector3();
+        this.camera = document.querySelector('[camera]');
+
+        const startMoving = () => { this.isPressing = true; };
+        const stopMoving = () => { this.isPressing = false; };
+
+        // Listen to global events for cardboard taps / VR trigger clicks
+        window.addEventListener('mousedown', startMoving);
+        window.addEventListener('mouseup', stopMoving);
+        window.addEventListener('touchstart', startMoving, { passive: true });
+        window.addEventListener('touchend', stopMoving);
+      },
+      tick: function (time, timeDelta) {
+        if (!this.isPressing || !this.camera) return;
+
+        // Get the direction the camera is looking
+        this.camera.object3D.getWorldDirection(this.direction);
+
+        // Move opposite of world direction (-Z is forward)
+        this.direction.multiplyScalar(-this.data.speed * (timeDelta / 16.6) || 1);
+
+        // Optional: comment out the next line if you want to fly instead of walk
+        this.direction.y = 0;
+
+        // Update rig position
+        this.el.object3D.position.add(this.direction);
+      }
+    });
+  </script>
   <style>
     body {
       margin: 0;
@@ -143,7 +179,8 @@
     </a-assets>
 
     <!-- Camera & Controls -->
-    <a-entity id="rig" position="0 0 0">
+    <!-- Added press-to-move so VR headsets can just touch/click screen to move forward -->
+    <a-entity id="rig" position="0 0 0" press-to-move="speed: 0.06">
       <a-entity id="camera" camera look-controls wasd-controls="acceleration:20" position="0 1.6 0">
         <a-cursor color="#d4af37" fuse="true" fuse-timeout="2000" raycaster="objects: .clickable"
           geometry="primitive: ring; radiusInner: 0.005; radiusOuter: 0.01" material="color: #d4af37; shader: flat">
