@@ -27,7 +27,7 @@
 
     <!-- Display the 3D House Model -->
     <!-- We add a 'shadow' component to cast shadows. The scale/position might need tweaking based on the model's native size. -->
-    <a-entity gltf-model="#houseModel" position="0 0 -10" scale="1 1 1" shadow="cast: true; receive: true"
+    <a-entity gltf-model="#houseModel" position="0 12 -10" scale="1 1 1" shadow="cast: true; receive: true"
       class="clickable" hoverable grabbable stretchable draggable></a-entity>
 
     <!-- Optional additional lighting -->
@@ -40,7 +40,14 @@
     <a-entity id="rig" movement-controls="speed: 0.2; fly: true" position="0 5 10">
 
       <!-- Camera/Headset -->
-      <a-entity camera position="0 1.6 0" look-controls="pointerLockEnabled: false"></a-entity>
+      <a-entity camera position="0 1.6 0" look-controls="pointerLockEnabled: false">
+        <!-- Interactive Ring at center of vision for gaze/click control -->
+        <a-cursor color="#FF0000" raycaster="objects: .clickable" fuse="false"
+          animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 1 1 1"
+          animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1500; from: 1 1 1; to: 0.1 0.1 0.1"
+          animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 500; to: 1 1 1">
+        </a-cursor>
+      </a-entity>
 
       <!-- Hand Controllers for Meta Quest / VR headsets -->
       <!-- Left Hand -->
