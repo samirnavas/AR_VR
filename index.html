@@ -179,13 +179,17 @@
     </a-assets>
 
     <!-- Camera & Controls -->
-    <!-- Added press-to-move so VR headsets can just touch/click screen to move forward -->
-    <a-entity id="rig" position="0 0 0" press-to-move="speed: 0.06">
+    <!-- Added press-to-move for touchscreens, and movement-controls for VR joysticks -->
+    <a-entity id="rig" position="0 0 0" movement-controls="speed: 0.15" press-to-move="speed: 0.08">
       <a-entity id="camera" camera look-controls wasd-controls="acceleration:20" position="0 1.6 0">
         <a-cursor color="#d4af37" fuse="true" fuse-timeout="2000" raycaster="objects: .clickable"
           geometry="primitive: ring; radiusInner: 0.005; radiusOuter: 0.01" material="color: #d4af37; shader: flat">
         </a-cursor>
       </a-entity>
+
+      <!-- Hand Controllers so VR joysticks are mapped and lasers appear -->
+      <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 10"></a-entity>
+      <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 10"></a-entity>
     </a-entity>
 
     <!-- Ambient & Directional Lighting -->
