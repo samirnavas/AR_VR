@@ -36,7 +36,8 @@
 
     <!-- VR Player Configuration Rig -->
     <!-- movement-controls provides keyboard (WASD) and VR controller thumbstick locomotion automatically -->
-    <a-entity id="rig" movement-controls="speed: 0.2" position="0 0 0">
+    <!-- We adjust the position to start higher up and further back so you see the house properly upon load -->
+    <a-entity id="rig" movement-controls="speed: 0.2; fly: true" position="0 5 10">
 
       <!-- Camera/Headset -->
       <a-entity camera position="0 1.6 0" look-controls="pointerLockEnabled: false"></a-entity>
