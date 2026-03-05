@@ -9,37 +9,44 @@
   <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.5.0/dist/aframe-extras.min.js"></script>
 
   <script>
-    // Custom component to move forward when pressing screen/trigger
-    AFRAME.registerComponent('press-to-move', {
-      schema: { speed: { default: 0.05 } },
+    // Custom component to handle VR thumbstick movement for Meta Quest
+    AFRAME.registerComponent('vr-thumbstick-movement', {
+      schema: { speed: { default: 0.08 } },
       init: function () {
-        this.isPressing = false;
-        this.direction = new THREE.Vector3();
         this.camera = document.querySelector('[camera]');
+        this.rig = document.querySelector('#rig');
+        this.moveX = 0;
+        this.moveY = 0;
+        this.direction = new THREE.Vector3();
+        this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
-        const startMoving = () => { this.isPressing = true; };
-        const stopMoving = () => { this.isPressing = false; };
-
-        // Listen to global events for cardboard taps / VR trigger clicks
-        window.addEventListener('mousedown', startMoving);
-        window.addEventListener('mouseup', stopMoving);
-        window.addEventListener('touchstart', startMoving, { passive: true });
-        window.addEventListener('touchend', stopMoving);
+        // Listen for thumbstick movement events from Meta Quest controllers
+        this.el.addEventListener('thumbstickmoved', (evt) => {
+          this.moveX = evt.detail.x;
+          this.moveY = evt.detail.y;
+        });
       },
       tick: function (time, timeDelta) {
-        if (!this.isPressing || !this.camera) return;
+        if (!this.camera || !this.rig) return;
 
-        // Get the direction the camera is looking
-        this.camera.object3D.getWorldDirection(this.direction);
+        // Deadzone of 0.1 to prevent stick drift
+        if (Math.abs(this.moveX) < 0.1 && Math.abs(this.moveY) < 0.1) return;
 
-        // Move opposite of world direction (-Z is forward)
-        this.direction.multiplyScalar(-this.data.speed * (timeDelta / 16.6) || 1);
+        // Extract camera Y rotation (yaw) to determine forward direction based on head look
+        this.euler.setFromQuaternion(this.camera.object3D.quaternion);
+        this.euler.x = 0;
+        this.euler.z = 0;
 
-        // Optional: comment out the next line if you want to fly instead of walk
-        this.direction.y = 0;
+        // Apply thumbstick values to a direction vector
+        // Pushing stick forward: moveY is negative, mapping smoothly to -Z (forward in WebXR)
+        this.direction.set(this.moveX, 0, this.moveY);
+        this.direction.applyEuler(this.euler);
 
-        // Update rig position
-        this.el.object3D.position.add(this.direction);
+        // Apply movement speed considering frame time (timeDelta)
+        const dt = Math.min(timeDelta || 16.6, 50) / 16.6;
+        this.direction.multiplyScalar(this.data.speed * dt);
+
+        this.rig.object3D.position.add(this.direction);
       }
     });
   </script>
@@ -179,8 +186,8 @@
     </a-assets>
 
     <!-- Camera & Controls -->
-    <!-- Added press-to-move for touchscreens, and movement-controls for VR joysticks -->
-    <a-entity id="rig" position="0 0 0" movement-controls="speed: 0.15" press-to-move="speed: 0.08">
+    <!-- Removed press-to-move, keeping movement-controls for desktop WASD fallback -->
+    <a-entity id="rig" position="0 0 0" movement-controls="speed: 0.15">
       <a-entity id="camera" camera look-controls wasd-controls="acceleration:20" position="0 1.6 0">
         <a-cursor color="#d4af37" fuse="true" fuse-timeout="2000" raycaster="objects: .clickable"
           geometry="primitive: ring; radiusInner: 0.005; radiusOuter: 0.01" material="color: #d4af37; shader: flat">
@@ -188,7 +195,9 @@
       </a-entity>
 
       <!-- Hand Controllers so VR joysticks are mapped and lasers appear -->
-      <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 10"></a-entity>
+      <!-- Attached vr-thumbstick-movement to the left hand -->
+      <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 10"
+        vr-thumbstick-movement="speed: 0.08"></a-entity>
       <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 10"></a-entity>
     </a-entity>
 
